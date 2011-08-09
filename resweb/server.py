@@ -1,4 +1,5 @@
 import os
+import itty
 from itty import Redirect, get, post, serve_static_file, run_itty
 from pyres import ResQ
 from pyres import failure
@@ -21,28 +22,36 @@ HOST = ResQ("localhost:6379")
 MY_ROOT = os.path.join(os.path.dirname(__file__), 'media')
 #resq = ResQ(HOST)
 
+class ReswebRequest(itty.Request):
+
+    def setup_self(self):
+        self.script_name = self._environ.get('SCRIPT_NAME', '')
+        return super(MyRequest, self).setup_self()
+
+itty.Request = ReswebRequest
+
 @get("/")
 def index(request):
-    return Overview(HOST).render().encode('utf-8')
+    return Overview(HOST, request.script_name).render().encode('utf-8')
 
 @get("/working/")
 def working(request):
-    return Working(HOST).render().encode('utf-8')
+    return Working(HOST, request.script_name).render().encode('utf-8')
 
 @get("/queues/")
 def queues(request):
-    return Queues(HOST).render().encode('utf-8')
+    return Queues(HOST, request.script_name).render().encode('utf-8')
 
 @get('/queues/(?P<queue_id>\w.+)/')
 def queue(request, queue_id):
     start = int(request.GET.get('start',0))
-    return Queue(HOST, queue_id, start).render().encode('utf-8')
+    return Queue(HOST, request.script_name, queue_id, start).render().encode('utf-8')
 
 @get('/failed/')
 def failed(request):
     start = request.GET.get('start',0)
     start = int(start)
-    return Failed(HOST, start).render().encode('utf-8')
+    return Failed(HOST, request.script_name, start).render().encode('utf-8')
 
 @post('/failed/retry/')
 def failed_retry(request):
@@ -50,21 +59,21 @@ def failed_retry(request):
     job = b64decode(failed_job)
     decoded = ResQ.decode(job)
     failure.retry(HOST, decoded['queue'], job)
-    raise Redirect('/failed/')
+    raise Redirect(request.script_name + '/failed/')
 
 @post('/failed/delete/')
 def failed_delete(request):
     failed_job = request.POST['failed_job']
     job = b64decode(failed_job)
     failure.delete(HOST, job)
-    raise Redirect('/failed/')
+    raise Redirect(request.script_name + '/failed/')
 
 @get('/failed/delete_all/')
 def delete_all_failed(request):
      #move resque:failed to resque:failed-staging
      HOST.redis.rename('resque:failed','resque:failed-staging')
      HOST.redis.delete('resque:failed-staging')
-     raise Redirect('/failed/')
+     raise Redirect(request.script_name + '/failed/')
 
 
 @get('/failed/retry_all')
@@ -73,39 +82,39 @@ def retry_failed(request, number=5000):
     for f in failures:
         j = b64decode(f['redis_value'])
         failure.retry(HOST, f['queue'], j)
-    raise Redirect('/failed/')
+    raise Redirect(request.script_name + '/failed/')
 
 @get('/workers/(?P<worker_id>\w.+)/')
 def worker(request, worker_id):
-    return Worker(HOST, worker_id).render().encode('utf-8')
+    return Worker(HOST, request.script_name, worker_id).render().encode('utf-8')
 
 @get('/workers/')
 def workers(request):
-    return Workers(HOST).render().encode('utf-8')
+    return Workers(HOST, request.script_name).render().encode('utf-8')
 
 @get('/stats/')
 def stats(request):
-    raise Redirect('/stats/resque/')
+    raise Redirect(request.script_name + '/stats/resque/')
 
 @get('/stats/(?P<key>\w+)/')
 def stats(request, key):
-    return Stats(HOST, key).render().encode('utf-8')
+    return Stats(HOST, request.script_name, key).render().encode('utf-8')
 
 @get('/stat/(?P<stat_id>\w.+)')
 def stat(request, stat_id):
-    return Stat(HOST, stat_id).render().encode('utf-8')
+    return Stat(HOST, request.script_name, stat_id).render().encode('utf-8')
 
 @get('/delayed/')
 def delayed(request):
     start = request.GET.get('start',0)
     start = int(start)
-    return Delayed(HOST, start).render().encode('utf-8')
+    return Delayed(HOST, request.script_name, start).render().encode('utf-8')
 
 @get('/delayed/(?P<timestamp>\w.+)')
 def delayed_timestamp(request, timestamp):
     start = request.GET.get('start',0)
     start = int(start)
-    return DelayedTimestamp(HOST, timestamp, start).render().encode('utf-8')
+    return DelayedTimestamp(HOST, request.script_name, timestamp, start).render().encode('utf-8')
 
 @get('/media/(?P<filename>.+)')
 def my_media(request, filename):

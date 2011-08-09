@@ -9,19 +9,19 @@
 <body>
   <div class="header">
     <ul class='nav'>
-        <li><a href='/'>Overview</a></li>
-        <li><a href='/working/'>Working</a></li>
-        <li><a href='/failed/'>Failed</a></li>
-        <li><a href='/queues/'>Queues</a></li>
-        <li><a href='/workers/'>Workers</a></li>
-        <li><a href='/delayed/'>Delayed</a></li>
-        <li><a href='/stats/'>Stats</a></li>
+        <li><a href='{{script_name}}/'>Overview</a></li>
+        <li><a href='{{script_name}}/working/'>Working</a></li>
+        <li><a href='{{script_name}}/failed/'>Failed</a></li>
+        <li><a href='{{script_name}}/queues/'>Queues</a></li>
+        <li><a href='{{script_name}}/workers/'>Workers</a></li>
+        <li><a href='{{script_name}}/delayed/'>Delayed</a></li>
+        <li><a href='{{script_name}}/stats/'>Stats</a></li>
     </ul>
   </div>
   
   <ul class='subnav'>
   {{#sub_nav}}
-        <li ><a href="/{{section}}/{{subtab}}/"><span>{{subtab}}</span></a></li>
+  <li ><a href="{{script_name}}/{{section}}/{{subtab}}/"><span>{{subtab}}</span></a></li>
   {{/sub_nav}}
   </ul>
   

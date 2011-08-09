@@ -9,12 +9,17 @@ import datetime
 TEMPLATE_PATH = os.path.join(os.path.dirname(__file__), 'templates')
 class ResWeb(pystache.View):
     template_path = TEMPLATE_PATH
-    def __init__(self, host):
+    def __init__(self, host, script_name=''):
         super(ResWeb, self).__init__()
         self.resq = host
+        self._script_name = script_name
 
     def media_folder(self):
-        return '/media/'
+        #return '/media/'
+        return self._script_name + '/media/'
+
+    def script_name(self):
+        return self._script_name
 
     def close(self):
         self.resq.close()
@@ -45,10 +50,10 @@ class ResWeb(pystache.View):
         return pages
 
 class Overview(ResWeb):
-    def __init__(self, host, queue=None, start=0):
+    def __init__(self, host, script_name, queue=None, start=0):
         self._queue = queue
         self._start = start
-        super(Overview, self).__init__(host)
+        super(Overview, self).__init__(host, script_name)
 
     def queue(self):
         return self._queue
@@ -57,6 +62,7 @@ class Overview(ResWeb):
         queues = []
         for q in sorted(self.resq.queues()):
             queues.append({
+                'script_name': self._script_name,
                 'queue': q,
                 'size': str(self.resq.size(q)),
             })
@@ -122,6 +128,7 @@ class Overview(ResWeb):
             return False
         else:
             return True
+
 class Queues(Overview):
     template_name = 'queue_full'
 
@@ -163,10 +170,10 @@ class Workers(ResWeb):
         return workers
 
 class Queue(ResWeb):
-    def __init__(self, host, key, start=0):
+    def __init__(self, host, script_name, key, start=0):
         self.key = key
         self._start = start
-        super(Queue, self).__init__(host)
+        super(Queue, self).__init__(host, script_name)
 
     def start(self):
         return str(self._start)
@@ -196,14 +203,16 @@ class Queue(ResWeb):
         return self.pages(self._start, int(self.size()), self.link_func)
 
     def link_func(self, start):
-        return '/queues/%s/?start=%s' % (self.key, start)
+        #return '/queues/%s/?start=%s' % (self.key, start)
+        return self._script_name + '/queues/%s/?start=%s' % (self.key,
+                start)
 
 
 class Failed(ResWeb):
-    def __init__(self, host, start=0):
+    def __init__(self, host, script_name, start=0):
         self._start = start
         self.host = host
-        super(Failed, self).__init__(host)
+        super(Failed, self).__init__(host, script_name)
 
     def start(self):
         return str(self._start)
@@ -224,7 +233,9 @@ class Failed(ResWeb):
 
             item = job
             item['failed_at'] = job['failed_at']
-            item['worker_url'] = '/workers/%s/' % job['worker']
+            #item['worker_url'] = '/workers/%s/' % job['worker']
+            item['worker_url'] = self._script_name + ('/workers/%s' %
+                    job['worker'])
             item['payload_args'] = str(job['payload']['args'])[:1024]
             item['payload_class'] = job['payload']['class']
             item['traceback'] = backtrace
@@ -236,24 +247,28 @@ class Failed(ResWeb):
         return self.pages(self._start, int(self.size()), self.link_func)
 
     def link_func(self, start):
-        return '/failed/?start=%s' % start
+        #return '/failed/?start=%s' % start
+        return self._script_name + '/failed/?start=%s' % start
 
 class Stats(ResWeb):
-    def __init__(self, host, key_id):
+    def __init__(self, host, script_name, key_id):
         self.key_id = key_id
-        super(Stats, self).__init__(host)
+        super(Stats, self).__init__(host, script_name)
 
     def sub_nav(self):
         sub_nav = []
         sub_nav.append({
+            'script_name':self._script_name,
             'section':'stats',
             'subtab':'resque'
         })
         sub_nav.append({
+            'script_name':self._script_name,
             'section':'stats',
             'subtab':'redis'
         })
         sub_nav.append({
+            'script_name':self._script_name,
             'section':'stats',
             'subtab':'keys'
         })
@@ -315,9 +330,9 @@ class Stats(ResWeb):
         return False
 
 class Stat(ResWeb):
-    def __init__(self, host, stat_id):
+    def __init__(self, host, script_name, stat_id):
         self.stat_id = stat_id
-        super(Stat, self).__init__(host)
+        super(Stat, self).__init__(host, script_name)
 
     def key(self):
         return str(self.stat_id)
@@ -349,9 +364,9 @@ class Stat(ResWeb):
         return redis_size(self.stat_id,self.resq)
 
 class Worker(ResWeb):
-    def __init__(self, host, worker_id):
+    def __init__(self, host, script_name, worker_id):
         self.worker_id = worker_id
-        super(Worker, self).__init__(host)
+        super(Worker, self).__init__(host, script_name)
         self._worker = Wrkr.find(worker_id, self.resq)
 
     def worker(self):
@@ -428,9 +443,9 @@ class Worker(ResWeb):
         pass
 
 class Delayed(ResWeb):
-    def __init__(self, host, start=0):
+    def __init__(self, host, script_name, start=0):
         self._start = start
-        super(Delayed, self).__init__(host)
+        super(Delayed, self).__init__(host, script_name)
 
     def start(self):
         return str(self._start)
@@ -458,13 +473,14 @@ class Delayed(ResWeb):
         return self.pages(self._start, int(self.size()), self.link_func)
 
     def link_func(self, start):
-        return '/delayed/?start=%s' % start
+        return self._script_name + '/delayed/?start=%s' % start
+        #return '/delayed/?start=%s' % start
 
 class DelayedTimestamp(ResWeb):
-    def __init__(self, host, timestamp, start=0):
+    def __init__(self, host, script_name, timestamp, start=0):
         self._start = start
         self._timestamp = timestamp
-        super(DelayedTimestamp, self).__init__(host)
+        super(DelayedTimestamp, self).__init__(host, script_name)
 
     def formated_timestamp(self):
         return str(datetime.datetime.fromtimestamp(float(self._timestamp)))
@@ -498,7 +514,8 @@ class DelayedTimestamp(ResWeb):
         return self.pages(self._start, int(self.size()), self.link_func)
 
     def link_func(self, start):
-        return '/delayed/?start=%s' % start
+        return self._script_name + '/delayed/?start=%s' % start
+        #return '/delayed/?start=%s' % start
 
 def redis_size(key, resq):
     key_type = resq.redis.type('resque:'+key)
